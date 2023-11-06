@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>뱀 게임</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f8ffe5;
+        }
+        canvas {
+            display: block;
+            background-color: #ffc43d;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1280" height="900"></canvas>
+    <div id="info" style="color: #ef476f; position: absolute; top: 10px; left: 10px;"></div>
+    <button id="boostButton" style="position: absolute; background-color: #06d6a0; top: 50px; left: 10px;">가속</button>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const context = canvas.getContext("2d");
+
+        const gridSize = 20;
+        const snake = [{x : 100, y: 150}];
+        let food = { x: 10, y: 10 };
+        let direction = "right";
+        let gameInterval;
+        let boost = false;
+        let score = 0;
+        let obstacles = [];
+
+        // 가속 버튼 클릭 이벤트
+        const boostButton = document.getElementById("boostButton");
+        boostButton.addEventListener("click", () => {
+            boost = true;
+            setTimeout(() => (boost = false), 1000);
+        });
+
+        // 장애물 생성
+        function createObstacle() {
+            const obstacle = {
+                type: Math.floor(Math.random() * 3),
+            };
+
+            // 랜덤으로 왼쪽, 오른쪽, 위, 아래 중 하나를 선택
+            const side = Math.floor(Math.random() * 4);
+
+            // 캔버스의 가로 및 세로 크기
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+
+            // 장애물 초기 위치 설정
+            if (side === 0) { // 왼쪽
+                obstacle.x = 0;
+                obstacle.y = Math.random() * canvasHeight;
+            } else if (side === 1) { // 오른쪽
+                obstacle.x = canvasWidth;
+                obstacle.y = Math.random() * canvasHeight;
+            } else if (side === 2) { // 위
+                obstacle.x = Math.random() * canvasWidth;
+                obstacle.y = 0;
+            } else { // 아래
+                obstacle.x = Math.random() * canvasWidth;
+                obstacle.y = canvasHeight;
+            }
+
+            // 장애물 속도 설정 (2부터 6까지의 임의의 속도)
+            obstacle.speed = Math.random() * 4 + 2;
+
+            obstacles.push(obstacle);
+            
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            updateGame();
+            drawGame();
+            if (gameOver()) {
+                endGame();
+                return;
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 게임 업데이트 로직
+        function updateGame() {
+
+            // 뱀 이동 및 위치 업데이트
+            moveSnake();
+            
+            //충돌감지
+            checkCollision();
+            //음식 먹었는지 체크
+            if (snake[0].x === food.x && snake[0].y === food.y) {
+                eatFood();
+            }
+            moveObstacles();
+            updateInfo();
+        }
+
+        // 뱀 이동 로직
+        function moveSnake() {
+            let headX = snake[0].x;
+            let headY = snake[0].y;
+            
+            console.log(snake[0].x);
+
+            // 뱀 머리를 마우스 커서 위치로 이동
+            canvas.addEventListener("mousemove", (event) => {
+                snake[0].x = event.clientX / gridSize;
+                snake[0].y = event.clientY / gridSize;
+            });
+            
+            // 나머지 뱀 몸통 위치 업데이트
+            for (let i = snake.length - 1; i > 0; i--) {
+                snake[i].x = snake[i - 1].x;
+                snake[i].y = snake[i - 1].y;
+            }
+
+            snake.unshift({ x: headX, y: headY });
+            snake.pop();
+        }
+
+        // 충돌 검사 로직
+        function checkCollision() {
+            // 충돌 검사 로직 구현
+            // 벽에 부딪혔는지 검사
+            // if (
+            //     snake[0].x < 0 ||
+            //     snake[0].x >= canvas.width / gridSize ||
+            //     snake[0].y < 0 ||
+            //     snake[0].y >= canvas.height / gridSize
+            // ) {
+            //     endGame();
+            // }
+            // // 자기 자신에게 부딪혔는지 검사
+            // for (let i = 1; i < snake.length; i++) {
+            //     if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
+            //         endGame();
+            //     }
+            // }
+        }
+        // 장애물 이동 로직
+        function moveObstacles() {
+            // 장애물 이동 로직 구현
+        }
+
+        // 음식 먹기 로직
+        function eatFood() {
+            score++;
+            food.x = Math.floor(Math.random() * (canvas.width / gridSize));
+            food.y = Math.floor(Math.random() * (canvas.height / gridSize));
+            // 새로운 음식을 생성하고, 뱀 길이를 늘린다.
+            snake.push({});
+        }
+
+        // 게임 화면 그리기
+        function drawGame() {
+            // 화면 지우기
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 음식 그리기
+            context.fillStyle = "red";
+            context.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+
+            // 뱀 그리기
+            context.fillStyle = "blue"; // 뱀의 색상
+            for (let i = 0; i < snake.length; i++) {
+                // 뱀의 각 세그먼트를 원 모양으로 그리기
+                context.beginPath();
+                context.arc(snake[i].x * gridSize + gridSize / 2, snake[i].y * gridSize + gridSize / 2, gridSize / 2, 0, 2 * Math.PI);
+                context.fill();
+            }
+
+            drawObstacles();
+
+            // context.fillStyle = "#1b9aaa";
+            // for (let i = 0; i < snake.length; i++) {
+            //     context.fillRect(
+            //         snake[i].x * gridSize,
+            //         snake[i].y * gridSize,
+            //         gridSize,
+            //         gridSize
+            //     );
+            // }
+            
+            // 점수 표시
+            context.fillStyle = "black";
+            context.fillText("Score: " + score, 12, 10 );
+        }
+
+        // 게임 종료
+        function endGame() {
+            alert("게임 오버! 점수: " + score);
+            location.reload(); // 게임 재시작
+        }
+
+        // 음식 그리기
+        function drawFood() {
+            // 음식 그리기
+            context.fill = "#ef476f";
+            context.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+        }
+
+        // 장애물 그리기
+        function drawObstacles() {
+            // 장애물 그리기 로직 구현
+            const obstacle = {
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            speed: Math.random() * 5 + 2,
+            type: Math.floor(Math.random() * 3),
+            };
+            obstacles.push(obstacle);
+
+            for (const obstacle of obstacles) {
+            context.beginPath();
+            context.arc(obstacle.x, obstacle.y, 10, 0, 2 * Math.PI);
+            
+            // 장애물의 타입에 따라 색상을 설정 (예: 랜덤 색상)
+            context.fillStyle = "green";
+            context.fill();
+            }
+
+            for (const obstacle of obstacles) {
+                // 스네이크의 위치 가져오기 (스네이크의 머리 위치)
+                const snakeHeadX = snake[0].x;
+                const snakeHeadY = snake[0].y;
+
+                // 장애물을 스네이크의 위치로 이동
+                const dx = snakeHeadX - obstacle.x;
+                const dy = snakeHeadY - obstacle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const speed = obstacle.speed;
+
+                if (distance > speed) {
+                    obstacle.x += (dx / distance) * speed;
+                    obstacle.y += (dy / distance) * speed;
+                } else {
+                    // 장애물이 스네이크에 도달하면 새로운 위치로 생성
+                    obstacle.x = Math.random() * canvas.width;
+                    obstacle.y = canvas.height; // 화면 아래로 이동
+                }
+            }
+        }
+
+        // 게임 종료 조건
+        function gameOver() {
+            // 게임 종료 조건 검사
+        }
+
+        // 게임 종료
+        function endGame() {
+            alert("게임 오버! 점수: " + score);
+            location.reload(); // 게임 재시작
+        }
+
+        // 게임 정보 업데이트
+        function updateInfo() {
+            const time = Math.floor(performance.now() / 1000);
+            const info = `시간: ${time}초, 뱀 길이: ${score}`;
+            document.getElementById("info").textContent = info;
+        }
+
+        // 키보드 이벤트 처리
+        document.addEventListener("keydown", changeDirection);
+
+        function changeDirection(event) {
+            // 뱀 방향 변경 로직 구현
+            // 방향 키 코드 정의
+            // 현재 방향 변수 초기화
+            // let currentDirection = RIGHT_ARROW;
+
+        }
+
+        // 게임 시작
+        gameLoop();
+        setInterval(createObstacle, 1000); // 일정 시간마다 장애물 생성
+    </script>
+</body>
+</html>
